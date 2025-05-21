@@ -8,7 +8,7 @@
 
 Status read_and_validate_args(char *argv[] ,MP3Info *mp3Info)
 {
-	if(strcmp(strstr(argv[2] ,".mp3") ,".mp3") == 0)
+	if(strstr(argv[2] , ".mp3") != NULL && strcmp(strstr(argv[2] ,".mp3") ,".mp3") == 0)
 	{
 		mp3Info->view_mp3_fname = argv[2];
 
@@ -82,7 +82,7 @@ Status check_mp3_tags(MP3Info *mp3Info)
 	if(strcmp(buf ,"TIT2") == 0)
 	{
 
-		mp3Info->tag_size = get_tag_size(mp3Info->fptr_view_mp3);
+		mp3Info->tag_size = get_tag_size(mp3Info->fptr_view_mp3)-1;
 
 		//read 3bytes flag from source file
 		fread(&mp3Info->flag ,3 ,1 ,mp3Info->fptr_view_mp3);
@@ -105,12 +105,14 @@ Status check_mp3_tags(MP3Info *mp3Info)
 	{
 	printf("after TPE1\n");
 
-		mp3Info->tag_size = get_tag_size(mp3Info->fptr_view_mp3);
+		mp3Info->tag_size = get_tag_size(mp3Info->fptr_view_mp3)-1;
 		
 		//read 3bytes flag from source file
 		fread(&mp3Info->flag ,3 ,1 ,mp3Info->fptr_view_mp3);
 
 		mp3Info->artist_name = malloc(mp3Info->tag_size * sizeof(char));
+
+		printf("tag size = %d\n",mp3Info->tag_size);
 
 		if(get_meta_data(mp3Info->fptr_view_mp3 ,mp3Info->artist_name ,mp3Info->tag_size) == e_success)
 		{
@@ -127,7 +129,7 @@ Status check_mp3_tags(MP3Info *mp3Info)
 	if(strcmp(buf ,"TALB") == 0)
 	{
 		
-		mp3Info->tag_size = get_tag_size(mp3Info->fptr_view_mp3);
+		mp3Info->tag_size = get_tag_size(mp3Info->fptr_view_mp3)-1;
 
 		//read 3bytes flag from source file
 		fread(&mp3Info->flag ,3 ,1 ,mp3Info->fptr_view_mp3);
@@ -147,7 +149,7 @@ Status check_mp3_tags(MP3Info *mp3Info)
 	fread(buf ,4 ,1 ,mp3Info->fptr_view_mp3);
 	if(strcmp(buf ,"TYER") == 0)
 	{
-		mp3Info->tag_size = get_tag_size(mp3Info->fptr_view_mp3);
+		mp3Info->tag_size = get_tag_size(mp3Info->fptr_view_mp3)-1;
 
 		//read 3bytes flag from source file
 		fread(&mp3Info->flag ,3 ,1 ,mp3Info->fptr_view_mp3);
@@ -168,7 +170,7 @@ Status check_mp3_tags(MP3Info *mp3Info)
 
 	if(strcmp(buf ,"TCON") == 0)
 	{
-		mp3Info->tag_size = get_tag_size(mp3Info->fptr_view_mp3);
+		mp3Info->tag_size = get_tag_size(mp3Info->fptr_view_mp3)-1;
 
 		//read 3bytes flag from source file
 		fread(&mp3Info->flag ,3 ,1 ,mp3Info->fptr_view_mp3);
@@ -190,7 +192,7 @@ Status check_mp3_tags(MP3Info *mp3Info)
 
 	if(strcmp(buf ,"COMM") == 0)
 	{
-		mp3Info->tag_size = get_tag_size(mp3Info->fptr_view_mp3);
+		mp3Info->tag_size = get_tag_size(mp3Info->fptr_view_mp3)-1;
 		
 		//read 3bytes flag from source file
 		fread(&mp3Info->flag ,3 ,1 ,mp3Info->fptr_view_mp3);
@@ -229,8 +231,9 @@ uint get_tag_size(FILE *fptr_view_mp3)
 Status get_meta_data(FILE *fptr_view_mp3 ,char *buff ,uint size)
 {
 
-	fread(buff ,size-1 ,1 ,fptr_view_mp3);
-	buff[size-1] = '\0';
+//	fread(buff ,size-1 ,1 ,fptr_view_mp3);
+	fread(buff ,size ,1 ,fptr_view_mp3);
+//	buff[size-1] = '\0';
 
 	return e_success;
 }

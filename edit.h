@@ -12,6 +12,7 @@ typedef struct _EditInfo
 	FILE *fptr_edit_mp3;
 	FILE *fptr_duplicate_file;
 	char new_data[100];
+	char TAG[5];
 	uint new_size;
 
 }Edit_Info;
@@ -26,6 +27,9 @@ Status edit_mp3_file_info(Edit_Info *editInfo ,char *argv[]);
 
 //open source file function
 Status open_src_edit_file(Edit_Info *editInfo);
+
+//copy data till tag matches
+Status copy_data_till_Tag_matched(Edit_Info *editInfo);
 
 //get old size
 uint get_old_size(Edit_Info *editInfo);

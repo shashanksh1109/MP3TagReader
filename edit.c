@@ -7,18 +7,24 @@
 //read and validate function
 Status read_and_validate_edit_args(char *argv[] ,Edit_Info *editInfo)
 {
-	if(strstr(argv[4] ,".mp3"))
+	//check for source file extn is of ".mp3"
+	if((strstr(argv[4] ,".mp3") != NULL) && (strcmp(strstr(argv[4] ,".mp3"), ".mp3") == 0))                       
 	{
-		editInfo->edit_mp3_fname = argv[4];
-		editInfo->duplicate_mp3_fname = "temp.mp3";
-		strcpy(editInfo->new_data , argv[3]);
-		editInfo->new_size = strlen(argv[3]);
+		editInfo->edit_mp3_fname = argv[4];          //store source file name    
+		editInfo->duplicate_mp3_fname = "temp.mp3";  //store temp.mp3 string to an array
+		strcpy(editInfo->new_data , argv[3]);        //copy new data which has to be edited
+		editInfo->new_size = strlen(argv[3])+1;      //store new data size including null character
 
-		if(open_src_edit_file(editInfo) == e_success)
+		if(open_src_edit_file(editInfo) == e_success)    //open files function call
 		{
 			printf("file opened successfully\n");
 		}
+		else
+			return e_failure;
 	}
+	else
+		return e_failure;
+
 	return e_success;
 }
 
@@ -42,137 +48,141 @@ Status open_src_edit_file(Edit_Info *editInfo)
 Status edit_mp3_file_info(Edit_Info *editInfo ,char *argv[])
 {
 	char *buf;
-	int old_size;
-	fread(buf,3,1,editInfo->fptr_edit_mp3);
-	if(strcmp(buf,"ID3") != 0)
+	uint old_size;
+
+	fread(buf,3,1,editInfo->fptr_edit_mp3); 
+	if(strcmp(buf,"ID3") != 0)               //check for the TAG
 	{
 		printf("tag is not ID3\n");
 		return e_failure;
 	}
 
-	rewind(editInfo->fptr_edit_mp3);
+	rewind(editInfo->fptr_edit_mp3);       
 	//skip 10 bytes header
 	fread(buf,10,1,editInfo->fptr_edit_mp3);
 	fwrite(buf,10,1,editInfo->fptr_duplicate_file);
-	printf("header copied successfully %s at %d in temp\n",buf,ftell(editInfo->fptr_duplicate_file));
+	printf("header copied successfully %s at %ld in temp\n",buf,ftell(editInfo->fptr_duplicate_file));
 
-
+	//checking for edit TAG options
 	if(strcmp(argv[2] ,"-t") == 0)
 	{
-		//read size
-		fread(buf,4,1,editInfo->fptr_edit_mp3);
-		printf("inside %s\t ftell = %ld\n",buf,ftell(editInfo->fptr_edit_mp3));
+		strcpy(editInfo->TAG ,"TIT2");
 
-		if(strcmp(buf ,"TIT2") == 0)
-		{
-			printf("Inside strcmp\n");
-			fwrite(buf,4,1,editInfo->fptr_duplicate_file);
-		}
-		//call read size fun
-		old_size = get_old_size(editInfo);
-		printf("get old size success %d\n",old_size);
-
-		if(store_new_size(editInfo) == e_success)
-		{
-			puts("data stored success\n");
-		}
-		//skip old size-1 times in src file
-		fseek(editInfo->fptr_edit_mp3,old_size-1,SEEK_CUR);
-		printf("after fseek = %d\n",ftell(editInfo->fptr_edit_mp3));
-		if(copy_remaining_bytes(editInfo) == e_success)
-		{
-			printf("remaining bytes copied\n");
-			if(copy_duplicate_to_src(editInfo) == e_success)
-			{
-				printf("copy from dup to src success\n");
-				return e_success;
-			}
-			else
-			{
-				puts("copy to src failed\n");
-				return e_failure;
-			}
-		}
-		else
-			puts("copy remaining bytes failed !\n");
-
+		printf("tag is checked successfull\n");
+		printf("TAG = %s\t %s is selected\n",editInfo->TAG,argv[2]);
 	}
 
-	//skipping size from fptr_edit_mp3
-#if 0
 	else if(strcmp(argv[2] ,"-a") == 0)
 	{
-		printf("-a selected \n");
-		fread(buf,4,1,editInfo->fptr_edit_mp3);
-		while(strcmp(buf ,"TPE1") != 0)
-		{
-			printf("buf = %s not TPE1\n",buf);
-			fread(buf,4,1,editInfo->fptr_edit_mp3);
-			fwrite(buf,4,1,editInfo->fptr_edit_mp3);
-			old_size = get_old_size(editInfo);
+		strcpy(editInfo->TAG ,"TPE1");
+		printf("TAG = %s\t %s is selected\n",editInfo->TAG,argv[2]);
+	}
+	else if(strcmp(argv[2] ,"-A") == 0)
+	{
+		strcpy(editInfo->TAG ,"TALB");
+		printf("TAG = %s\t %s is selected\n",editInfo->TAG,argv[2]);
+	}
+	else if(strcmp(argv[2] ,"-y") == 0)
+	{
+		strcpy(editInfo->TAG ,"TYER");
+		printf("TAG = %s\t %s is selected\n",editInfo->TAG,argv[2]);
+	}
+	else if(strcmp(argv[2] ,"-m") == 0)
+	{
+		strcpy(editInfo->TAG ,"TCON");
+		printf("TAG = %s\t %s is selected\n",editInfo->TAG,argv[2]);
+	}
+	else if(strcmp(argv[2] ,"-c") == 0)
+	{
+		strcpy(editInfo->TAG ,"COMM");
+		printf("TAG = %s\t %s is selected\n",editInfo->TAG,argv[2]);
+	}
+	else
+	{
+		printf("ERROR : select a valid tag edit option\n");
+		return e_failure;
+	}
+	
+	if(copy_data_till_Tag_matched(editInfo ) == e_success)   //fun call
+		printf("tag is checked successfull\n");
+	else
+		puts("copy failed\n");
 
-			fread(buf,3,1,editInfo->fptr_edit_mp3);
-			fwrite(buf,3,1,editInfo->fptr_edit_mp3);
-			fwrite(buf,old_size-1,1,editInfo->fptr_duplicate_file);
+	old_size=get_old_size(editInfo);                         //fun call to get old size
+
+	store_new_size(editInfo);                                //fun call to store new size
+	fseek(editInfo->fptr_edit_mp3,old_size-1,SEEK_CUR);      //skip old content in source file
+
+	if(copy_remaining_bytes(editInfo) == e_success)          //fun call to copy remaining bytes from src to temp file
+	{
+		printf("remaining bytes copied\n");
+		if(copy_duplicate_to_src(editInfo) == e_success)     //fun call to copy all contents from temp to source file
+		{
+			printf("copy from dup to src success\n");
+			return e_success;
 		}
-		if(strcmp(buf,"TPE1") == 0)
+		else
 		{
-			fwrite(buf,4,1,editInfo->fptr_duplicate_file);
-			old_size=get_old_size(editInfo);
-
-			store_new_size(editInfo);
-			fseek(editInfo->fptr_edit_mp3,old_size-1,SEEK_CUR);
-
-			if(copy_remaining_bytes(editInfo) == e_success)
-			{
-				printf("remaining bytes copied\n");
-				if(copy_duplicate_to_src(editInfo) == e_success)
-				{
-					printf("copy from dup to src success\n");
-					return e_success;
-				}
-				else
-				{
-					puts("copy to src failed\n");
-					return e_failure;
-				}
-			}
-			else
-				puts("copy remaining bytes failed !\n");
-
-
+			puts("copy to src failed\n");
+			return e_failure;
 		}
 	}
-#endif
-	/*   else if(argv[2] == "-A")
-		 {
+	else
+		puts("copy remaining bytes failed !\n");
 
-		 }
-		 else
-		 {
-		 printf("Error : invalid option ! %s\n",argv[2]);
-		 return e_failure;
-		 }*/
 	return e_success;
 }
 
+/* copy data till tag matches fun definition */
+Status copy_data_till_Tag_matched(Edit_Info *editInfo )
+{
+	char buf[1000]={};
+	uint old_size;
+
+	fread(buf,4,1,editInfo->fptr_edit_mp3);          //read 4 bytes TAG
+	buf[4] = 0;                                      //store null character at buf[4]
+	while(strcmp(buf ,editInfo->TAG) != 0)           //run until buffer TAG & source file TAG become same
+	{
+		
+		fwrite(buf,4,1,editInfo->fptr_duplicate_file);    //write TAG to duplicate file if TAG not matched
+		old_size = get_old_size(editInfo);                //fun call
+
+		fseek(editInfo -> fptr_edit_mp3,-4,SEEK_CUR);     //moving OFFSET 4bytes backward using fseek
+		
+		fread(buf,4,1,editInfo->fptr_edit_mp3);           //copy the old size to duplicate file using fread & fwrite
+		fwrite(buf,4,1,editInfo->fptr_duplicate_file);
+		
+		fread(buf,3,1,editInfo->fptr_edit_mp3);           //skip 3bytes flag
+		fwrite(buf,3,1,editInfo->fptr_duplicate_file);
+		
+		fread(buf,old_size-1,1,editInfo->fptr_edit_mp3);  //copy the data from source to duplicate file
+		fwrite(buf,old_size-1,1,editInfo->fptr_duplicate_file);
+		
+		fread(buf,4,1,editInfo->fptr_edit_mp3);           //read the TAG
+		buf[4] = 0;                                       //store null to perform string compare operation 
+	}
+	fwrite(buf,4,1,editInfo->fptr_duplicate_file);        //write the TAG to duplicate file if TAG is same 
+
+	return e_success;
+}
+
+/* getting old size fun definition */
 uint get_old_size(Edit_Info *editInfo)
 {
 	uint old_size=0;
 	char buf[4];
+	
 	fread(buf,4,1,editInfo->fptr_edit_mp3);
 	for(int i=0;i<4;i++)
 	{
-		printf("buf[%d] = %x\n",i,buf[i]);
-		old_size = old_size | (buf[i] << (8*(4-i-1)));
+		old_size = old_size | (buf[i] << (8*(4-i-1)));    //converting size from hexa value into decimal
 	}
-	putchar('\n');
-	printf("old size = %u\t %x\n",old_size,old_size);
-
+//	printf("old size = %u\t %#x\n",old_size,old_size);
 
 	return old_size;
 }
 
+/* store new size & new content to duplicate file fun definition */
 Status store_new_size(Edit_Info *editInfo)
 {
 	int size = editInfo->new_size;
@@ -183,37 +193,42 @@ Status store_new_size(Edit_Info *editInfo)
 	for(int i=0;i<4;i++)
 	{
 		buf[i] = (size<<(8*(3-i)));
-		printf("buf[%d] = %d\n",i,buf[i]);
+//		printf("buf[%d] = %d\n",i,buf[i]);
 	}
-	fwrite(buf,4,1,editInfo->fptr_duplicate_file);
+	fwrite(buf,4,1,editInfo->fptr_duplicate_file);    //write new size stored in buf to temp file
 
-	printf("newsize = %d\n",size);
-
-	//read flag from src file
-	fread(buf,3,1,editInfo->fptr_edit_mp3);
-	fwrite(buf,3,1,editInfo->fptr_duplicate_file);
+	fread(buf,3,1,editInfo->fptr_edit_mp3);           //read flag from src file
+	fwrite(buf,3,1,editInfo->fptr_duplicate_file);    //write flag to temp file
 	printf("3bytes flag is skipped\n");
 
-	fwrite(editInfo->new_data,size,1,editInfo->fptr_duplicate_file);
+	//write new data into the temp file
+	fwrite(editInfo->new_data,size-1,1,editInfo->fptr_duplicate_file);
 	printf("new_data = %s\n",editInfo->new_data);
+
 	return e_success;
 }
 
+/* copying remaining bytes from source file to duplicate file fun definition */
 Status copy_remaining_bytes(Edit_Info *editInfo)
 {
 	char buf;
-	printf("after data copy offset is in %d pos\n",ftell(editInfo->fptr_edit_mp3));
+	
 	//copy remaining bytes
 	while(fread(&buf,1,1,editInfo->fptr_edit_mp3))
 		fwrite(&buf,1,1,editInfo->fptr_duplicate_file);
 }
 
+/* copying all contents of duplicate file into original source file */
 Status  copy_duplicate_to_src(Edit_Info *editInfo)
 {
 	char buf;
-	editInfo->fptr_duplicate_file = fopen(editInfo->duplicate_mp3_fname ,"r");
-	editInfo->fptr_edit_mp3 = fopen(editInfo->edit_mp3_fname , "w");
-	rewind(editInfo->fptr_duplicate_file);
+
+	editInfo->fptr_duplicate_file = fopen(editInfo->duplicate_mp3_fname ,"r");   //open duplicate file in read mode
+	editInfo->fptr_edit_mp3 = fopen(editInfo->edit_mp3_fname , "w");             //open source file in write mode 
+	
+	rewind(editInfo->fptr_duplicate_file);     //offset pointing to starting position of file
+
+	//copying content until EOF
 	while(fread(&buf,1,1,editInfo->fptr_duplicate_file))
 		fwrite(&buf,1,1,editInfo->fptr_edit_mp3);
 
